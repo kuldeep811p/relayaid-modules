@@ -1,6 +1,3 @@
-// sync.js — browser side: GPS extractor + WebSocket sync over local hotspot.
-// Merge rule: last-write-wins per record id (updatedAt, tie-break deviceId). Good enough for a demo.
-
 // ---------- GPS ----------
 export function getLocation({ timeout = 15000 } = {}) {
   return new Promise((resolve, reject) => {
@@ -63,7 +60,7 @@ export class HotspotSync {
     localStorage.setItem("records", JSON.stringify(this.records));
     this.onChange(r, this.records);
   }
-  // e.g. save({id:"patient-12", category:"RED", coords, photo:dataUrl})
+  // -----save------
   save(data) {
     const r = { ...data, updatedAt: Date.now(), deviceId: DEVICE_ID };
     this.merge(r);
