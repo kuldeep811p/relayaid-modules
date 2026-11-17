@@ -56,7 +56,6 @@ TriageResult triage(Patient p, [Thresholds t = const Thresholds()]) {
 
   path.add('Resp rate > ${t.respRateRed}?');
   if (p.respRate > t.respRateRed) return done(Category.red, 'Respiratory rate ${p.respRate} > ${t.respRateRed}');
-
   path.add('Perfusion (radial pulse / cap refill)?');
   final bad = p.radialPulse == false ||
       (p.radialPulse == null && p.capRefillSec != null && p.capRefillSec! > t.capRefillRedSec);
