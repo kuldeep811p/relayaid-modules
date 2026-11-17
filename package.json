@@ -1,0 +1,7 @@
+{
+  "name": "relayaid-kuldeep-modules",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": { "start": "node server.cjs", "test": "node test.js" },
+  "dependencies": { "ws": "^8.18.0" }
+}

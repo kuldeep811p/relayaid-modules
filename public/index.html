@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RelayAid – Kuldeep modules demo</title>
+<style>
+ body{font-family:system-ui,sans-serif;margin:0;padding:12px;max-width:520px;margin-inline:auto}
+ h2{margin:.6em 0 .3em} section{border:1px solid #8884;border-radius:10px;padding:10px;margin:10px 0}
+ label{display:block;margin:4px 0} button{padding:10px 14px;margin:4px 4px 4px 0;font-size:1rem}
+ .tag{display:inline-block;padding:6px 14px;border-radius:6px;color:#fff;font-weight:700;font-size:1.2rem}
+ .GREEN{background:#2e7d32}.YELLOW{background:#f9a825;color:#000}.RED{background:#c62828}.BLACK{background:#000}
+ video,img,canvas{max-width:100%;border-radius:8px} pre{white-space:pre-wrap;font-size:.85rem}
+ #net.online{color:#2e7d32}#net.offline{color:#c62828}
+ #ring{position:relative}#ring i{position:absolute;left:50%;top:50%;width:22%;aspect-ratio:1;transform:translate(-50%,-50%);border:3px solid #ff0;border-radius:50%;pointer-events:none}
+</style></head><body>
+<h2>RelayAid demo</h2>
+<div>Sync: <b id="net" class="offline">offline</b> · GPS: <span id="gps">–</span></div>
+
+<section><h2>1. START triage</h2>
+ <label><input type="checkbox" id="walking"> Can walk</label>
+ <label><input type="checkbox" id="breathing" checked> Breathing</label>
+ <label><input type="checkbox" id="rep"> Breathes after airway repositioned</label>
+ <label>Resp. rate <input type="number" id="rr" value="20" style="width:5em"> /min</label>
+ <label><input type="checkbox" id="pulse" checked> Radial pulse present</label>
+ <label><input type="checkbox" id="cmd" checked> Follows simple commands</label>
+ <label>SpO₂ <input type="number" id="spo2" style="width:4em"> HR <input type="number" id="hr" style="width:4em"> <select id="vs"><option>valid</option><option>unreliable</option><option>unavailable</option></select></label>
+ <button id="go">Classify</button>
+ <div id="out"></div>
+</section>
+
+<section><h2>2. Camera</h2>
+ <div id="ring"><video id="vid" playsinline muted></video><i></i></div>
+ <button id="cam">Start camera</button>
+ <button id="plr">Pupil light reflex (align eye in circle)</button>
+ <button id="shot">Tourniquet photo</button>
+ <pre id="plrOut"></pre><img id="photo" alt="">
+</section>
+
+<section><h2>3. Sync (hotspot)</h2>
+ <button id="save">Save current triage as record</button>
+ <pre id="recs">no records</pre>
+</section>
+
+<script type="module">
+import { triageResult } from "./triage.js";
+import { startCamera, pupillaryLightReflex, watermarkedPhoto } from "./vision.js";
+import { getLocation, HotspotSync } from "./sync.js";
+const $ = (id) => document.getElementById(id);
+let last = null, stream = null, coords = null, seq = 1;
+
+const sync = new HotspotSync({
+  onStatus: (s) => { $("net").textContent = s; $("net").className = s; },
+  onChange: (_r, all) => { $("recs").textContent = Object.values(all).map(r => `${r.id}  ${r.category}  ${new Date(r.updatedAt).toLocaleTimeString()}  [${r.deviceId}]`).join("\n"); },
+});
+if (Object.keys(sync.records).length) sync.onChange(null, sync.records);
+
+getLocation().then(c => { coords = c; $("gps").textContent = `${c.latitude.toFixed(5)}, ${c.longitude.toFixed(5)} ±${Math.round(c.accuracy)}m`; })
+  .catch(e => { $("gps").textContent = "n/a (" + e.message + ")"; });
+
+$("go").onclick = () => {
+  const num = (id) => $(id).value === "" ? undefined : Number($(id).value);
+  last = triageResult({
+    walking: $("walking").checked, breathing: $("breathing").checked, breathingAfterReposition: $("rep").checked,
+    respRate: Number($("rr").value), radialPulse: $("pulse").checked, followsCommands: $("cmd").checked,
+    spo2: num("spo2"), hr: num("hr"), vitalsStatus: $("vs").value,
+  });
+  $("out").innerHTML = `<span class="tag ${last.category}">${last.category}</span> ${last.reason}
+    <pre>Path: ${last.path.join(" → ")}\n${last.warnings.map(w => "⚠ " + w).join("\n")}</pre>`;
+};
+
+$("cam").onclick = async () => {
+  try { stream = await startCamera($("vid"), "user"); } catch (e) { alert("Camera: " + e.message + "\n(needs https://)"); }
+};
+$("plr").onclick = async () => {
+  if (!stream) return alert("Start camera first");
+  const v = $("vid"), s = Math.round(Math.min(v.videoWidth, v.videoHeight) * 0.22);
+  const roi = { x: Math.round((v.videoWidth - s) / 2), y: Math.round((v.videoHeight - s) / 2), w: s, h: s };
+  $("plrOut").textContent = "Hold still… flashing";
+  const r = await pupillaryLightReflex(v, stream, roi);
+  $("plrOut").textContent = JSON.stringify(r, null, 2);
+};
+$("shot").onclick = async () => {
+  if (!stream) return alert("Start camera first");
+  const p = await watermarkedPhoto($("vid"), { label: "TOURNIQUET APPLIED", coords });
+  $("photo").src = p.dataUrl;
+};
+
+$("save").onclick = () => {
+  if (!last) return alert("Classify first");
+  const id = `RA-2026-${String(Date.now()).slice(-4)}${seq++}`;
+  sync.save({ id, category: last.category, reason: last.reason, warnings: last.warnings, coords, status: "saved_locally" });
+};
+</script></body></html>
