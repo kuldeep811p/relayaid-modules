@@ -28,6 +28,7 @@ node sync-test.cjs       # sync server integration test
 - `INSTRUCTIONS` (step text per colour) in `triage.js`
 - PLR `reactiveMinPct` (default 15, placeholder) in `vision.js`
 - Watermark label/fields in `vision.js`
+- 
 
 ## Known limits (say these in the demo)
 - Torch flash works on Android Chrome only; iOS uses a screen flash (weaker).
