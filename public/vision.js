@@ -1,6 +1,3 @@
-// vision.js — client-side PLR check + tourniquet timestamp watermark. No libraries.
-// Needs HTTPS (or localhost) for camera access.
-
 export async function startCamera(videoEl, facing = "environment") {
   const stream = await navigator.mediaDevices.getUserMedia({
     video: { facingMode: facing, width: { ideal: 1280 }, height: { ideal: 720 } },
@@ -11,8 +8,6 @@ export async function startCamera(videoEl, facing = "environment") {
   return stream;
 }
 
-// Torch works on Android Chrome (rear camera). iOS Safari does NOT support it.
-// Fallback: flash the screen white and use the front camera (see screenFlash).
 export async function setTorch(stream, on) {
   const track = stream.getVideoTracks()[0];
   const caps = track.getCapabilities?.() || {};
@@ -29,10 +24,6 @@ export function screenFlash(ms = 300) {
 }
 
 // ---------- PLR ----------
-// Idea: pupil = dark blob inside a small ROI around the eye (user aligns eye in an on-screen circle).
-// Flash changes overall brightness, so we do NOT compare mean luminance.
-// We compare the DARK-PIXEL AREA, with the threshold recomputed per frame (mean - k*std).
-
 function pupilArea(videoEl, roi, k = 1.0) {
   const c = pupilArea.c || (pupilArea.c = document.createElement("canvas"));
   c.width = roi.w; c.height = roi.h;
@@ -56,11 +47,7 @@ function pupilArea(videoEl, roi, k = 1.0) {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-/**
- * Runs: baseline (pre-flash) -> flash -> sample 1.5 s.
- * roi = {x,y,w,h} in video pixels. Returns constriction % and a verdict.
- * Thresholds (>= ~15 % = reactive) are PLACEHOLDERS: calibrate on the team + confirm with Rishika.
- */
+
 export async function pupillaryLightReflex(videoEl, stream, roi, opts = {}) {
   const { reactiveMinPct = 15, flashFn = null } = opts;
   const pre = [];
@@ -84,7 +71,6 @@ export async function pupillaryLightReflex(videoEl, stream, roi, opts = {}) {
 }
 
 // ---------- Tourniquet timestamp watermark ----------
-// Draws the current video frame (or an <img>) to a canvas and burns in time + GPS + label.
 export async function watermarkedPhoto(sourceEl, { label = "TOURNIQUET APPLIED", coords = null, time = new Date() } = {}) {
   const w = sourceEl.videoWidth || sourceEl.naturalWidth;
   const h = sourceEl.videoHeight || sourceEl.naturalHeight;
